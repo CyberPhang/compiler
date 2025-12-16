@@ -4,6 +4,7 @@
 #include <memory>
 #include <string_view>
 #include "lexer.hpp"
+#include <iostream>
 
 Token::Token(TokenType type, std::string lexeme) : type(type), lexeme(std::move(lexeme)) {}
 
@@ -30,7 +31,7 @@ void Lexer::add_next_token(std::string_view input) {
             add_token(TOKEN_OPEN_PARAN, "(");
             break;
         case ')':
-            add_token(TOKEN_OPEN_PARAN, ")");
+            add_token(TOKEN_CLOSED_PARAN, ")");
             break;
         case '{':
             add_token(TOKEN_OPEN_BRACE, "{");
@@ -45,27 +46,22 @@ void Lexer::add_next_token(std::string_view input) {
             if (std::isdigit(last_char)) {
                 int value {};
 
-                while (curr < input.length() && std::isdigit(last_char)) {
-                    value += last_char - '0';
-                    value *= 10;
+                while (curr < input.length() && std::isdigit(input[curr])) {
+                    value = value * 10 + (input[curr] - '0');
                     curr++;
-                    last_char = input[curr];
                 }
-                curr--;
-                value /= 10;
 
                 add_token(TOKEN_CONSTANT, std::to_string(value));
 
-                if (curr == input.length()) {
+                if (curr >= input.length()) {
                     add_token(TOKEN_EOF, "");
                 }
+                curr--;
             } else if (std::isalpha(last_char) || last_char == '_') {
                 start = curr;
-                while (curr < input.length() && (std::isalnum(last_char) || last_char == '_')) {
-                    last_char = input[curr];
+                while (curr < input.length() && (std::isalnum(input[curr]) || input[curr] == '_')) {
                     curr++;
                 }
-                curr--;
 
                 std::string name = std::string(input.substr(start, curr - start));
                 if (keywords.count(name)) {
