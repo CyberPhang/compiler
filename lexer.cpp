@@ -93,5 +93,9 @@ const std::vector<std::unique_ptr<Token>>& Lexer::read(std::string_view input) {
         add_next_token(input);
     }
 
+    if (tokens.back()->type != TOKEN_EOF) {
+        add_token(TOKEN_EOF, "");
+    }
+
     return tokens;
 }
