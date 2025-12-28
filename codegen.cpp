@@ -19,7 +19,7 @@ std::string Emitter::format(const ASMTree::Operand& op) {
 
 void Emitter::emit(const ASMTree::Program& node, std::ostream& out) {
     for (const auto& func : node.functions) {
-        out << ".globl" << func.name << "\n";
+        out << ".globl " << func.name << "\n";
         out << func.name << ":\n";
 
         for (const auto& instr : func.instructions) {
