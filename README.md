@@ -1,4 +1,4 @@
-# A C compiler
+# Teeny Tiny C
 
 A simple compiler for a subset of C, which currently only compiles programs that look like
 
