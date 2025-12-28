@@ -6,7 +6,7 @@
 #include <vector>
 #include <unordered_map>
 
-enum TokenType {
+enum class TokenType {
     TOKEN_IDENTIFIER,
     
     TOKEN_CONSTANT,
@@ -27,28 +27,33 @@ enum TokenType {
 struct Token {
     TokenType type;
     std::string lexeme;
+    int line;
+    int col;
 
-    Token(TokenType type, std::string lexeme);
+    Token(TokenType type, std::string lexeme, int line, int col);
 };
 
 class Lexer {
     private:
         int start;
         int curr;
-        std::vector<std::unique_ptr<Token>> tokens;
+        int line;
+        int col;
+
+        std::vector<Token> tokens;
         static inline const std::unordered_map<std::string, TokenType> keywords = {
-            {"int", TOKEN_INT},
-            {"void", TOKEN_VOID},
-            {"return", TOKEN_RET}
+            {"int", TokenType::TOKEN_INT},
+            {"void", TokenType::TOKEN_VOID},
+            {"return", TokenType::TOKEN_RET}
         };
 
-        void add_token(TokenType token, std::string_view lexeme);
+        void add_token(TokenType token, std::string_view lexeme, int line, int col);
         void add_next_token(std::string_view input);
 
     public:
         Lexer();
-        const std::vector<std::unique_ptr<Token>>& get_tokens();
-        const std::vector<std::unique_ptr<Token>>& read(std::string_view input);
+        const std::vector<Token>& get_tokens();
+        const std::vector<Token>& read(std::string_view input);
 };
 
 #endif

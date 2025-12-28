@@ -1,6 +1,7 @@
 *.obj
 *.exe
 .vscode/
+*.asm
 
 # Contains tests
 test.cpp 
