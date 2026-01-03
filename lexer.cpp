@@ -12,7 +12,7 @@ void Lexer::add_token(TokenType token, std::string_view lexeme, int line, int co
     tokens.emplace_back(token, std::string(lexeme), line, col);
 }
 
-void Lexer::add_next_token(std::string_view input) {
+void Lexer::add_next_token(const std::string_view input) {
     int last_char { input[curr] };
     while (curr < input.length() && std::isspace(last_char)) {
         if (last_char == '\n') {
@@ -47,6 +47,17 @@ void Lexer::add_next_token(std::string_view input) {
             break;
         case ';':
             add_token(TokenType::TOKEN_SEMI, ";", line, col);
+            break;
+        case '~':
+            add_token(TokenType::TOKEN_TILDE, "~", line, col);
+            break;
+        case '-':
+            if (curr + 1 < input.length() && input[curr + 1] == '-') {
+                add_token(TokenType::TOKEN_DEC, "--", line, col);
+                ++curr;
+            } else {
+                add_token(TokenType::TOKEN_NEG, "-", line, col);
+            }
             break;
         default:
             if (std::isdigit(last_char)) {

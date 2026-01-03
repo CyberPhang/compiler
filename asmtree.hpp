@@ -1,81 +1,86 @@
 #ifndef ASMTREE_H
 #define ASMTREE_H
 
-#include <variant>
 #include <string>
-#include <memory>
+#include <variant>
 #include <vector>
-#include "ast.hpp"
+#include <unordered_map>
+#include "tac.hpp"
 
 namespace ASMTree {
-    enum class Reg {
-        EAX,
-    };
-
-    struct Imm { 
+    struct Imm {
         int val;
-        
+
         Imm(int val);
     };
 
-    enum class Opcode {
-        MOV,
-        RET,
+    struct Reg {
+        enum class reg {
+            AX,
+            R10,
+        };
+
+        Reg::reg r;
+
+        Reg(Reg::reg r);
     };
 
-    struct Operand {
-        std::variant<Reg, Imm> val;
+    struct Pseudo {
+        std::string identifier;
 
-        Operand(Reg r);
-        Operand(Imm i);
+        Pseudo(std::string identifier);
+    };
+
+    struct Stack {
+        int offset;
+
+        Stack(int offset);
+    };
+
+    using Operand = std::variant<std::monostate, Imm, Reg, Pseudo, Stack>;
+
+    struct Ret {};
+
+    struct AllocateStack {
+        int amount;
+
+        AllocateStack(int amount);
+    };
+
+    struct Unary {
+        enum class UnOp {
+            NEG,
+            NOT,
+        };
+
+        Unary::UnOp op;
+        Operand operand;
+
+        Unary(Unary::UnOp op, Operand operand);
     };
 
     struct Mov {
-        Opcode op;
         Operand src;
         Operand dst;
 
         Mov(Operand src, Operand dst);
     };
 
-    struct Ret {
-        Opcode op;
-
-        Ret();
-    };
-
-    using Instr = std::variant<std::monostate, Mov, Ret>;
+    using Instr = std::variant<std::monostate, Ret, Mov, Unary, AllocateStack>;
 
     struct Function {
-        std::string name;
+        std::string identifier;
         std::vector<Instr> instructions;
 
-        Function(std::string name);
+        Function(std::string identifier);
     };
 
     struct Program {
-        std::vector<Function> functions;
+        Function f;
 
-        Program();
-        Program(Function func_def);
+        Program(Function f);
     };
 
-    class LoweringVisitor : public AST::ExprVisitor, public AST::StmtVisitor {
-        Operand last_result = Operand(Imm(0));
-        Function* curr_func = nullptr;
-        Program program;
-
-        void visit(AST::Constant& node) override;
-
-        void visit(AST::Return& node) override;
-
-        void visit(AST::Function& node);
-
-    public:
-        LoweringVisitor();
-
-        Program lower(AST::Program& node);
-    };
+    Program lower(const TAC::Program& p);
 }
-
 #endif

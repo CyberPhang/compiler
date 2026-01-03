@@ -11,15 +11,23 @@ enum class TokenType {
     
     TOKEN_CONSTANT,
 
+    // Keywords
     TOKEN_INT,
     TOKEN_VOID,
     TOKEN_RET,
 
+
+    // Parans and braces
     TOKEN_OPEN_PARAN,
     TOKEN_CLOSED_PARAN,
     TOKEN_OPEN_BRACE,
     TOKEN_CLOSED_BRACE,
     TOKEN_SEMI,
+
+    // Unary operators
+    TOKEN_TILDE,
+    TOKEN_NEG,
+    TOKEN_DEC,
 
     TOKEN_EOF,
 };

@@ -4,74 +4,53 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <variant>
+#include <optional>
 #include "lexer.hpp"
 
-class Error {
-public:
+namespace Error {
     static void syntax_error(int line, int col, std::string_view msg);
 };
 
-namespace AST {
-    // Expr forward declarations
-    // Needed for declaring visitor
-    class Constant;
-
-    // Stmt forward declarations
-    // Needed for declaring visitor
-    class Return;
-
-    struct ExprVisitor {
-        virtual ~ExprVisitor() = default;
-        virtual void visit(Constant& node) = 0;
-    };
-
-    struct StmtVisitor {
-        virtual ~StmtVisitor() = default;
-        virtual void visit(Return& noded) = 0;
-    };
-
-    struct Expr {
-        virtual ~Expr() = default;
-        virtual void accept(ExprVisitor& v) = 0;
-    };
-
-    struct Stmt {
-        virtual ~Stmt() = default;
-        virtual void accept(StmtVisitor& v) = 0;
-    };
-
-    class Return : public Stmt {
-    public:
-        std::unique_ptr<Expr> exp;
-
-        Return(std::unique_ptr<Expr> exp);
-
-        void accept(StmtVisitor& v);
-    };
-
-    class Constant : public Expr {
-    public:
-        // TODO: Expand to more types
+namespace AST {    
+    struct Constant {
         int val;
 
         Constant(int val);
-
-        void accept(ExprVisitor& v);
     };
 
-    class Function {
-    public:
+    using Expr = std::variant<std::monostate, Constant, struct Unary>;
+
+    struct Unary {
+        enum class UnOp { NEG, TILDE };
+
+        UnOp op;
+        std::unique_ptr<Expr> exp;
+
+        Unary(Unary::UnOp op, std::unique_ptr<Expr> exp);
+    };
+
+    using Expr = std::variant<std::monostate, Constant, Unary>;
+
+    struct Return {
+        Expr exp;
+
+        Return(Expr exp);
+    };
+
+    using Stmt = std::variant<std::monostate, Return>;
+
+    struct Function {
         std::string name;
-        std::unique_ptr<Stmt> body;
+        Stmt body;
 
-        Function(std::string name, std::unique_ptr<Stmt> body);
+        Function(std::string name, Stmt body);
     };
 
-    class Program {
-    public:
-        std::unique_ptr<Function> func_def;
+    struct Program {
+        Function func_def;
 
-        Program(std::unique_ptr<Function> func_def); 
+        Program(Function func_def); 
     };
 
     class Parser {
@@ -81,15 +60,15 @@ namespace AST {
     public:
         Parser(const std::vector<Token>& tokens);
 
-        std::unique_ptr<Constant> parse_int();
+        std::optional<Constant> parse_int();
 
-        std::unique_ptr<Expr> parse_exp();
+        std::optional<Expr> parse_exp();
 
-        std::unique_ptr<Stmt> parse_statement();
+        std::optional<Stmt> parse_statement();
 
-        std::unique_ptr<Function> parse_function();
+        std::optional<Function> parse_function();
 
-        std::unique_ptr<Program> parse_program();
+        std::optional<Program> parse_program();
 
         bool expect(TokenType expected, std::string_view msg);
     };

@@ -5,6 +5,7 @@
 #include <sstream>
 #include "lexer.hpp"
 #include "ast.hpp"
+#include "tac.hpp"
 #include "asmtree.hpp"
 #include "codegen.hpp"
 
@@ -16,7 +17,7 @@ int main(int argc, char* argv[]) {
         std::ifstream input_file(argv[1]);
 
         if (!input_file.is_open()) {
-            std::cerr << "Error: unable to open the file " << argv[0] << "\n";
+            std::cerr << "Error: unable to open the file " << argv[1] << "\n";
             return 1;
         }
 
@@ -25,12 +26,18 @@ int main(int argc, char* argv[]) {
 
         Lexer l = Lexer();
         std::vector<Token> tokens = l.read(buffer.str());
-
+        
         AST::Parser p = AST::Parser(tokens);
-        std::unique_ptr<AST::Program> ast = p.parse_program();
+        std::optional<AST::Program> ast = p.parse_program();
 
-        ASMTree::LoweringVisitor lv = ASMTree::LoweringVisitor();
-        ASMTree::Program asm_tree = lv.lower(*ast);
+        if (!ast) {
+            std::cerr << "Aborted due to syntax error";
+            return 1;
+        }
+
+        TAC::Program tac = TAC::emit_tac(*ast);
+
+        ASMTree::Program asm_tree = ASMTree::lower(tac);
 
         std::ofstream output_file("main.asm");
         
