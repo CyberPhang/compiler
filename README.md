@@ -19,4 +19,34 @@ $ /ttc [filename]
 
 and the compiler will build a file main.asm, in which the corresponding assembly will be printed.
 
+Example:
+
+The following C program
+
+```c
+int main(void) {
+    return -(~5);
+}
+```
+
+compiles to
+
+```asm
+    .globl main
+main:
+    pushq    %rbp
+    movq    %rsp, %rbp
+    subq    $8, %rsp
+    movl    $5, -4(%rbp)
+    notl    -4(%rbp)
+    movl    -4(%rbp), %r10d
+    movl    %r10d, -8(%rbp)
+    negl    -8(%rbp)
+    movl    -8(%rbp), %eax
+    movq    %rbp, %rsp
+    popq    %rbp
+    ret
+```
+
+
 This project is built in C++ 17.
