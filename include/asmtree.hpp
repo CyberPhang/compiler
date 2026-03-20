@@ -17,7 +17,9 @@ namespace ASMTree {
     struct Reg {
         enum class reg {
             AX,
+            DX,
             R10,
+            R11,
         };
 
         Reg::reg r;
@@ -59,6 +61,26 @@ namespace ASMTree {
         Unary(Unary::UnOp op, Operand operand);
     };
 
+    struct Binary {
+        enum class BinOp {
+            ADD, SUB, MUL
+        };
+
+        BinOp binop;
+        Operand op1;
+        Operand op2;
+
+        Binary(BinOp binop, Operand op1, Operand op2);
+    };
+
+    struct Idiv {
+        Operand op;
+
+        Idiv(Operand op);
+    };
+
+    struct Cdq {};
+
     struct Mov {
         Operand src;
         Operand dst;
@@ -66,7 +88,7 @@ namespace ASMTree {
         Mov(Operand src, Operand dst);
     };
 
-    using Instr = std::variant<std::monostate, Ret, Mov, Unary, AllocateStack>;
+    using Instr = std::variant<std::monostate, Ret, Mov, Unary, Binary, Idiv, Cdq, AllocateStack>;
 
     struct Function {
         std::string identifier;

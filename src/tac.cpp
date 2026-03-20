@@ -1,7 +1,8 @@
 #include <vector>
 #include <variant>
 #include <string>
-#include "tac.hpp"
+#include <stdexcept>
+#include "../include/tac.hpp"
 
 TAC::Constant::Constant(int val) : val(val) {}
 
@@ -13,7 +14,10 @@ TAC::Return::Return(TAC::Val val) : val(std::move(val)) {}
 
 TAC::Unary::Unary(TAC::Unary::UnOp op, TAC::Val src, TAC::Var dst) : op(op), src(std::move(src)), dst(std::move(dst)) {}
 
-using Instr = std::variant<std::monostate, TAC::Return, TAC::Unary>;
+TAC::Binary::Binary(TAC::Binary::BinOp op, TAC::Val src1, TAC::Val src2, TAC::Var dst) : 
+    op(op), src1(std::move(src1)), src2(std::move(src2)), dst(std::move(dst)) {}
+
+using Instr = std::variant<std::monostate, TAC::Return, TAC::Unary, TAC::Binary>;
 
 TAC::Function::Function(std::string identifier) : identifier(std::move(identifier)), instructions(0) {}
 
@@ -31,8 +35,25 @@ TAC::Unary::UnOp convert_unop(const AST::Unary::UnOp unop) {
             return TAC::Unary::UnOp::NEGATE;
         case AST::Unary::UnOp::TILDE:
             return TAC::Unary::UnOp::COMPLEMENT;
-        default: // satisfy compiler warning - should never execute
-            return TAC::Unary::UnOp::NEGATE;
+        default: // Should never execute
+            throw std::runtime_error("Failed to convert unary operator");
+    }
+}
+
+TAC::Binary::BinOp convert_binop(const AST::Binary::BinOp binop) {
+    switch (binop) {
+        case AST::Binary::BinOp::ADD:
+            return TAC::Binary::BinOp::ADD;
+        case AST::Binary::BinOp::SUB:
+            return TAC::Binary::BinOp::SUB;
+        case AST::Binary::BinOp::MUL:
+            return TAC::Binary::BinOp::MUL;
+        case AST::Binary::BinOp::DIV:
+            return TAC::Binary::BinOp::DIV;
+        case AST::Binary::BinOp::MOD:
+            return TAC::Binary::BinOp::MOD;
+        default: // Should never execute
+            throw std::runtime_error("Failed to convert binary operator");
     }
 }
 
@@ -51,6 +72,14 @@ TAC::Val emit_tac(const AST::Expr& exp, std::vector<TAC::Instr>& instructions) {
                 TAC::Var dst = TAC::Var(make_temp());
                 TAC::Unary::UnOp op = convert_unop(u.op);
                 instructions.emplace_back(std::in_place_type<TAC::Unary>, op, src, dst);
+                return dst;
+            },
+            [&instructions](const AST::Binary& b) -> TAC::Val {
+                TAC::Val src1 = ::emit_tac(*b.lhs, instructions);
+                TAC::Val src2 = ::emit_tac(*b.rhs, instructions);
+                TAC::Var dst = TAC::Var(make_temp());
+                TAC::Binary::BinOp op = convert_binop(b.op);
+                instructions.emplace_back(TAC::Binary{op, src1, src2, dst});
                 return dst;
             },
             [](const std::monostate&) -> TAC::Val { return std::monostate{}; }

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <optional>
-#include "ast.hpp"
+#include "../include/ast.hpp"
 
 void Error::syntax_error(int line, int col, std::string_view msg) {
     std::cout << "Syntax error at line " << line << ", column " << col << ": " << msg << "\n";
@@ -35,7 +35,7 @@ std::optional<AST::Constant> AST::Parser::parse_int() {
     return node;
 }
 
-std::optional<AST::Expr> AST::Parser::parse_exp() {
+std::optional<AST::Expr> AST::Parser::parse_factor() {
     const Token& token = tokens[curr];
     switch (token.type) {
         case TokenType::TOKEN_CONSTANT:
@@ -45,7 +45,7 @@ std::optional<AST::Expr> AST::Parser::parse_exp() {
             AST::Unary::UnOp op = token.type == TokenType::TOKEN_NEG ? AST::Unary::UnOp::NEG : AST::Unary::UnOp::TILDE;
             ++curr;
 
-            std::optional<AST::Expr> inner_exp = parse_exp();
+            std::optional<AST::Expr> inner_exp = parse_factor();
             if (inner_exp == std::nullopt) {
                 return std::nullopt;
             }
@@ -67,9 +67,70 @@ std::optional<AST::Expr> AST::Parser::parse_exp() {
             return inner_exp;
         }
         default:
-            Error::syntax_error(tokens[curr].line, tokens[curr].col, "Malformed expression");
+            Error::syntax_error(tokens[curr].line, tokens[curr].col, "Malformed factor");
             return std::nullopt;
     }
+}
+
+bool is_bin_op(const TokenType& t) {
+    return t == TokenType::TOKEN_ADD || t == TokenType::TOKEN_NEG || t == TokenType::TOKEN_MUL || 
+            t == TokenType::TOKEN_DIV || t == TokenType::TOKEN_MOD;
+}
+
+AST::Binary::BinOp get_bin_op(const TokenType& t) {
+    switch (t) {
+        case TokenType::TOKEN_ADD:
+            return AST::Binary::BinOp::ADD;
+        case TokenType::TOKEN_NEG:
+            return AST::Binary::BinOp::SUB;
+        case TokenType::TOKEN_MUL:
+            return AST::Binary::BinOp::MUL;
+        case TokenType::TOKEN_DIV:
+            return AST::Binary::BinOp::DIV;
+        case TokenType::TOKEN_MOD:
+            return AST::Binary::BinOp::MOD;
+        default: // Should never execute
+            throw std::runtime_error("Failed to get binary operator");
+    }
+}
+
+int get_prec(const AST::Binary::BinOp& op) {
+    switch (op) {
+        case AST::Binary::BinOp::ADD:
+        case AST::Binary::BinOp::SUB:
+            return 45;
+        case AST::Binary::BinOp::MUL:
+        case AST::Binary::BinOp::DIV:
+        case AST::Binary::BinOp::MOD:
+            return 50;
+        default: // Should never execute
+            throw std::runtime_error("Failed to get precedent of binary operation");
+    }
+}
+
+std::optional<AST::Expr> AST::Parser::parse_exp(int min_prec = 0) {
+    std::optional<AST::Expr> left = parse_factor();
+    
+    if (!left) {
+        return std::nullopt;
+    }
+
+    const Token& token = tokens[curr];
+    while (is_bin_op(token.type) && (static_cast<int>(get_bin_op(token.type)) >= min_prec)) {
+        AST::Binary::BinOp op = get_bin_op(token.type);
+        ++curr;
+        std::optional<AST::Expr> right = parse_exp(get_prec(op) + 1);
+
+        if (!right) {
+            return std::nullopt;
+        }
+
+        left = AST::Binary(op, std::make_unique<Expr>(*left), std::make_unique<Expr>(*right));
+    }
+
+    ++curr;
+
+    return left;
 }
 
 std::optional<AST::Stmt> AST::Parser::parse_statement() {

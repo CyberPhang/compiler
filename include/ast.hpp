@@ -19,7 +19,7 @@ namespace AST {
         Constant(int val);
     };
 
-    using Expr = std::variant<std::monostate, Constant, struct Unary>;
+    using Expr = std::variant<std::monostate, Constant, struct Unary, struct Binary>;
 
     struct Unary {
         enum class UnOp { NEG, TILDE };
@@ -30,7 +30,17 @@ namespace AST {
         Unary(Unary::UnOp op, std::unique_ptr<Expr> exp);
     };
 
-    using Expr = std::variant<std::monostate, Constant, Unary>;
+    struct Binary {
+        enum class BinOp { ADD, SUB, MUL, DIV, MOD, };
+
+        BinOp op;
+        std::unique_ptr<Expr> lhs;
+        std::unique_ptr<Expr> rhs;
+
+        Binary(Binary::BinOp op, std::unique_ptr<Expr> lhs, std::unique_ptr<Expr> rhs);
+    };
+
+    using Expr = std::variant<std::monostate, Constant, Unary, Binary>;
 
     struct Return {
         Expr exp;
@@ -57,16 +67,18 @@ namespace AST {
         int curr;
         const std::vector<Token>& tokens;
 
-    public:
-        Parser(const std::vector<Token>& tokens);
-
         std::optional<Constant> parse_int();
 
-        std::optional<Expr> parse_exp();
+        std::optional<Expr> parse_factor();
+
+        std::optional<Expr> parse_exp(int min_prec);
 
         std::optional<Stmt> parse_statement();
 
         std::optional<Function> parse_function();
+
+    public:
+        Parser(const std::vector<Token>& tokens);
 
         std::optional<Program> parse_program();
 

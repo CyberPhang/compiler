@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
-#include "tac.hpp"
-#include "asmtree.hpp"
+#include "../include/tac.hpp"
+#include "../include/asmtree.hpp"
 
 ASMTree::Imm::Imm(int val) : val(val) {}
 
@@ -67,6 +67,13 @@ int replace_pseudos(std::vector<ASMTree::Instr>& instructions) {
             },
             [&table, &loc](ASMTree::Unary& u) -> void {
                 replace_operand(loc, u.operand, table);
+            },
+            [&table, &loc](ASMTree::Binary& b) -> void {
+                replace_operand(loc, b.op1, table);
+                replace_operand(loc, b.op2, table);
+            },
+            [&table, &loc](ASMTree::Idiv& d) -> void {
+                replace_operand(loc, d.op, table);
             },
             [](const auto&) -> void {}
         }, i);
@@ -135,14 +142,27 @@ ASMTree::Operand lower(const TAC::Val& v) {
     );
 }
 
+ASMTree::Binary::BinOp get_binop(TAC::Binary::BinOp b) {
+    switch (b) {
+        case TAC::Binary::BinOp::ADD:
+            return ASMTree::Binary::BinOp::ADD;
+        case TAC::Binary::BinOp::MUL:
+            return ASMTree::Binary::BinOp::MUL;
+        case TAC::Binary::BinOp::SUB:
+            return ASMTree::Binary::BinOp::SUB;
+        default: // Should never execute;
+            throw std::runtime_error("Failed to get binary operator");
+    }
+}
+
 void lower(const TAC::Instr& i, std::vector<ASMTree::Instr>& instructions) {
     std::visit(
         overloaded {
-            [&instructions](TAC::Return r) -> void {
-                instructions.emplace_back(ASMTree::Mov{lower(r.val), ASMTree::Reg::reg::AX});
+            [&instructions](const TAC::Return& r) -> void {
+                instructions.emplace_back(ASMTree::Mov{lower(r.val), ASMTree::Reg(ASMTree::Reg::reg::AX)});
                 instructions.emplace_back(ASMTree::Ret{});
             },
-            [&instructions](TAC::Unary u) -> void {
+            [&instructions](const TAC::Unary& u) -> void {
                 instructions.emplace_back(ASMTree::Mov{lower(u.src), lower(u.dst)});
 
                 ASMTree::Unary::UnOp unop;
@@ -157,7 +177,27 @@ void lower(const TAC::Instr& i, std::vector<ASMTree::Instr>& instructions) {
 
                 instructions.emplace_back(ASMTree::Unary{unop, lower(u.dst)});
             },
-            [](std::monostate) -> void {} 
+            [&instructions](const TAC::Binary& b) -> void {
+                switch (b.op) {
+                    case TAC::Binary::BinOp::DIV:
+                        instructions.emplace_back(ASMTree::Mov{lower(b.src1), ASMTree::Reg(ASMTree::Reg::reg::AX)});
+                        instructions.emplace_back(ASMTree::Cdq{});
+                        instructions.emplace_back(ASMTree::Idiv{lower(b.src2)});
+                        instructions.emplace_back(ASMTree::Mov{ASMTree::Reg(ASMTree::Reg(ASMTree::Reg::reg::AX)), lower(b.dst)});
+                        break;
+                    case TAC::Binary::BinOp::MOD:
+                        instructions.emplace_back(ASMTree::Mov{lower(b.src1), ASMTree::Reg(ASMTree::Reg::reg::AX)});
+                        instructions.emplace_back(ASMTree::Cdq{});
+                        instructions.emplace_back(ASMTree::Idiv{lower(b.src2)});
+                        instructions.emplace_back(ASMTree::Mov{ASMTree::Reg(ASMTree::Reg(ASMTree::Reg::reg::DX)), lower(b.dst)});
+                        break;
+                    default:
+                        ASMTree::Binary::BinOp binop = get_binop(b.op);
+                        instructions.emplace_back(ASMTree::Mov{lower(b.src1), lower(b.dst)});
+                        instructions.emplace_back(ASMTree::Binary{binop, lower(b.src2), lower(b.dst)});
+                }
+            },
+            [](const std::monostate&) -> void {} 
         }, i
     );
 }
