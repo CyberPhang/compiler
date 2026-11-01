@@ -5,26 +5,26 @@
 #include <optional>
 #include "../include/ast.hpp"
 
-void Error::syntax_error(int line, int col, std::string_view msg) {
+void error::syntax_error(int line, int col, std::string_view msg) {
     std::cout << "Syntax error at line " << line << ", column " << col << ": " << msg << "\n";
 }
 
-AST::Return::Return(AST::Expr exp) : exp(std::move(exp)) {}
+ast::Return::Return(ast::Expr exp) : exp(std::move(exp)) {}
 
-AST::Constant::Constant(int val) : val(val) {}
+ast::Constant::Constant(int val) : val(val) {}
 
-AST::Unary::Unary(AST::Unary::UnOp op, std::unique_ptr<AST::Expr> exp) : op(op), exp(std::move(exp)) {}
+ast::Unary::Unary(ast::Unary::UnOp op, std::unique_ptr<ast::Expr> exp) : op(op), exp(std::move(exp)) {}
 
-AST::Function::Function(std::string name, AST::Stmt body) : 
+ast::Function::Function(std::string name, ast::Stmt body) : 
     name(std::move(name)), body(std::move(body)) {}
 
-AST::Program::Program(AST::Function func_def) : func_def(std::move(func_def)) {}
+ast::Program::Program(ast::Function func_def) : func_def(std::move(func_def)) {}
 
-AST::Parser::Parser(const std::vector<Token>& tokens) : 
+ast::Parser::Parser(const std::vector<Token>& tokens) : 
     curr(0), tokens(tokens) {}
 
 
-std::optional<AST::Constant> AST::Parser::parse_int() {
+std::optional<ast::Constant> ast::Parser::parse_int() {
     if (!expect(TokenType::CONSTANT, "expected constant")) {
         return std::nullopt;
     }
@@ -35,29 +35,29 @@ std::optional<AST::Constant> AST::Parser::parse_int() {
     return node;
 }
 
-std::optional<AST::Expr> AST::Parser::parse_factor() {
+std::optional<ast::Expr> ast::Parser::parse_factor() {
     const Token& token = tokens[curr];
     switch (token.type_) {
         case TokenType::CONSTANT:
             return parse_int();
         case TokenType::NEG:
         case TokenType::TILDE: {
-            AST::Unary::UnOp op = token.type_ == TokenType::NEG ? AST::Unary::UnOp::NEG : AST::Unary::UnOp::TILDE;
+            ast::Unary::UnOp op = token.type_ == TokenType::NEG ? ast::Unary::UnOp::NEG : ast::Unary::UnOp::TILDE;
             ++curr;
 
-            std::optional<AST::Expr> inner_exp = parse_factor();
+            std::optional<ast::Expr> inner_exp = parse_factor();
             if (inner_exp == std::nullopt) {
                 return std::nullopt;
             }
 
-            std::unique_ptr<AST::Expr> ptr = std::make_unique<Expr>(std::move(*inner_exp));
+            std::unique_ptr<ast::Expr> ptr = std::make_unique<Expr>(std::move(*inner_exp));
 
-            return AST::Unary(op, std::move(ptr));
+            return ast::Unary(op, std::move(ptr));
         }
         case TokenType::OPEN_PARAN: {
             ++curr;
 
-            std::optional<AST::Expr> inner_exp = parse_exp();
+            std::optional<ast::Expr> inner_exp = parse_exp();
 
             if (!inner_exp || !expect(TokenType::CLOSED_PARAN, "Expected ')'")) {
                 return std::nullopt;
@@ -67,7 +67,7 @@ std::optional<AST::Expr> AST::Parser::parse_factor() {
             return inner_exp;
         }
         default:
-            Error::syntax_error(tokens[curr].line_, tokens[curr].col_, "Malformed factor");
+            error::syntax_error(tokens[curr].line_, tokens[curr].col_, "Malformed factor");
             return std::nullopt;
     }
 }
@@ -77,39 +77,39 @@ bool is_bin_op(const TokenType& t) {
             t == TokenType::DIV || t == TokenType::MOD;
 }
 
-AST::Binary::BinOp get_bin_op(const TokenType& t) {
+ast::Binary::BinOp get_bin_op(const TokenType& t) {
     switch (t) {
         case TokenType::ADD:
-            return AST::Binary::BinOp::ADD;
+            return ast::Binary::BinOp::ADD;
         case TokenType::NEG:
-            return AST::Binary::BinOp::SUB;
+            return ast::Binary::BinOp::SUB;
         case TokenType::MUL:
-            return AST::Binary::BinOp::MUL;
+            return ast::Binary::BinOp::MUL;
         case TokenType::DIV:
-            return AST::Binary::BinOp::DIV;
+            return ast::Binary::BinOp::DIV;
         case TokenType::MOD:
-            return AST::Binary::BinOp::MOD;
+            return ast::Binary::BinOp::MOD;
         default: // Should never execute
             throw std::runtime_error("Failed to get binary operator");
     }
 }
 
-int get_prec(const AST::Binary::BinOp& op) {
+int get_prec(const ast::Binary::BinOp& op) {
     switch (op) {
-        case AST::Binary::BinOp::ADD:
-        case AST::Binary::BinOp::SUB:
+        case ast::Binary::BinOp::ADD:
+        case ast::Binary::BinOp::SUB:
             return 45;
-        case AST::Binary::BinOp::MUL:
-        case AST::Binary::BinOp::DIV:
-        case AST::Binary::BinOp::MOD:
+        case ast::Binary::BinOp::MUL:
+        case ast::Binary::BinOp::DIV:
+        case ast::Binary::BinOp::MOD:
             return 50;
         default: // Should never execute
             throw std::runtime_error("Failed to get precedent of binary operation");
     }
 }
 
-std::optional<AST::Expr> AST::Parser::parse_exp(int min_prec = 0) {
-    std::optional<AST::Expr> left = parse_factor();
+std::optional<ast::Expr> ast::Parser::parse_exp(int min_prec = 0) {
+    std::optional<ast::Expr> left = parse_factor();
     
     if (!left) {
         return std::nullopt;
@@ -117,15 +117,15 @@ std::optional<AST::Expr> AST::Parser::parse_exp(int min_prec = 0) {
 
     const Token& token = tokens[curr];
     while (is_bin_op(token.type_) && (static_cast<int>(get_bin_op(token.type_)) >= min_prec)) {
-        AST::Binary::BinOp op = get_bin_op(token.type_);
+        ast::Binary::BinOp op = get_bin_op(token.type_);
         ++curr;
-        std::optional<AST::Expr> right = parse_exp(get_prec(op) + 1);
+        std::optional<ast::Expr> right = parse_exp(get_prec(op) + 1);
 
         if (!right) {
             return std::nullopt;
         }
 
-        left = AST::Binary(op, std::make_unique<Expr>(*left), std::make_unique<Expr>(*right));
+        left = ast::Binary(op, std::make_unique<Expr>(*left), std::make_unique<Expr>(*right));
     }
 
     ++curr;
@@ -133,23 +133,23 @@ std::optional<AST::Expr> AST::Parser::parse_exp(int min_prec = 0) {
     return left;
 }
 
-std::optional<AST::Stmt> AST::Parser::parse_statement() {
+std::optional<ast::Stmt> ast::Parser::parse_statement() {
     if (!expect(TokenType::RET, "expected return")) {
         return std::nullopt;
     }
     ++curr;
     
-    std::optional<AST::Expr> exp = parse_exp();
+    std::optional<ast::Expr> exp = parse_exp();
     
     if (!exp || !expect(TokenType::SEMI, "expected semicolon")) {
         return std::nullopt;
     }
     ++curr;
 
-    return AST::Return(std::move(*exp));
+    return ast::Return(std::move(*exp));
 }
 
-std::optional<AST::Function> AST::Parser::parse_function() {
+std::optional<ast::Function> ast::Parser::parse_function() {
     if (!expect(TokenType::INT, "expected 'int' return type")) {
         return std::nullopt;
     }
@@ -181,34 +181,34 @@ std::optional<AST::Function> AST::Parser::parse_function() {
     }
     ++curr;
 
-    std::optional<AST::Stmt> body = parse_statement();
+    std::optional<ast::Stmt> body = parse_statement();
     
     if (!body || !expect(TokenType::CLOSED_BRACE, "expected '}'")) {
         return std::nullopt;
     }
     ++curr;
 
-    return AST::Function(std::move(name), std::move(*body));
+    return ast::Function(std::move(name), std::move(*body));
 }
 
-std::optional<AST::Program> AST::Parser::parse_program() {
-    std::optional<AST::Function> func_def = parse_function();
+std::optional<ast::Program> ast::Parser::parse_program() {
+    std::optional<ast::Function> func_def = parse_function();
     if (!func_def) {
         return std::nullopt;
     }
 
     if (curr < tokens.size() - 1) {
-        Error::syntax_error(tokens[curr].line_, tokens[curr].col_, "expected program end");
+        error::syntax_error(tokens[curr].line_, tokens[curr].col_, "expected program end");
         return std::nullopt;
     }
 
-    return AST::Program(std::move(*func_def));
+    return ast::Program(std::move(*func_def));
 }
 
-bool AST::Parser::expect(TokenType expected, std::string_view msg) {
+bool ast::Parser::expect(TokenType expected, std::string_view msg) {
     const Token &actual = tokens[curr];
     if (actual.type_ != expected) {
-        Error::syntax_error(actual.line_, actual.col_, msg);
+        error::syntax_error(actual.line_, actual.col_, msg);
         return false;
     }
     return true;
