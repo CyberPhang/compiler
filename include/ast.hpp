@@ -8,13 +8,15 @@
 #include <optional>
 #include "lexer.hpp"
 
-namespace Error {
+namespace error {
     static void syntax_error(int line, int col, std::string_view msg);
 };
 
-namespace AST {    
+namespace ast {
+
+    // Represents a constant value. Currently, this only includes 64-bit integers.
     struct Constant {
-        int val;
+        int32_t val;
 
         Constant(int val);
     };

@@ -72,21 +72,16 @@ std::ostream& operator<<(std::ostream& os, Token t);
 // Tokens corresponding to what it just read, one at a time.
 class Lexer {
     private:
-        // int start;
         int curr_;
         int line_;
         int col_;
         std::string content_;
 
-        // std::vector<Token> tokens;
         static inline const std::unordered_map<std::string, TokenType> keywords = {
             {"int", TokenType::INT},
             {"void", TokenType::VOID},
             {"return", TokenType::RET}
         };
-
-        // void add_token(TokenType token, std::string_view lexeme, int line, int col);
-        // void add_next_token(std::string_view input);
 
     public:
         // Creates a lexer containing the given file content as a string. The content
@@ -94,15 +89,12 @@ class Lexer {
         // Args:
         // - std::string content - the raw text of the code, as an std::string
         Lexer(std::string content) : curr_(0), line_(0), col_(0), content_(std::move(content)) {}
-
-        // const std::vector<Token>& get_tokens();
         
         // Returns the next token from content_.
         // Returns:
         // - Token - the next Token to lex in content_. 
         Token get_next_token();
         
-        // const std::vector<Token>& read(std::string_view input);
 };
 
 #endif
